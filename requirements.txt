@@ -1,0 +1,33 @@
+#core python Utilities
+python-dateutil
+pytz
+
+#scientific computing 
+numpy
+scipy
+pandas
+
+
+#portfolio optimisation
+cvxpy
+osqp
+scs
+
+#Financial data
+yfinance
+
+#Visualization 
+matplotlib
+seaborn
+
+#agent & orchestration(chat interface only)
+phidata
+
+#local llm runtime 
+ollama
+
+#jupyter
+jupyter
+ipykernel
+notebook
+
