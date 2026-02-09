@@ -1,4 +1,4 @@
-class Config:
+class config:
     assets = [
     "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA",  # Technology
     "TSLA", "META",                           # Consumer Discretionary / Comm
