@@ -3,3 +3,10 @@
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
 
+.cache/
+.vscode/
+
+__pycache__/
+*.pyc
+*.pyo
+
