@@ -2,7 +2,7 @@ from agents.data_agent import DataFetchAgent
 from config.config import config
 from agents.data_alignment_agent import DataAlignmentAgent
 from agents.optimization_agent import optimisationagent as OptimizationAgent
-
+from agents.ai_reasoning_agent import AIReasoningAgent
 prices = DataFetchAgent.run(
     assets=config.assets,
     start_date=config.start_date,
@@ -32,3 +32,8 @@ for k, v in result["weights"].items():
 
 print("\nExpected Return:", result["expected_return"])
 print("Portfolio Risk:", result["risk"])
+
+explanation = AIReasoningAgent.run(result)
+print("\nAI Explanation:")
+print(explanation)
+
