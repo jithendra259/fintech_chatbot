@@ -36,7 +36,10 @@ class optimisationagent:
 
         return {
             "assets":assets,
-            "weights":dict(zip(assets, weights)),
+            "weights":{
+                asset:float(max(0, weight))
+                for asset, weight in zip(assets,weights)
+                },
             "expected_return":float(mean_returns @ weights),
             "risk":float(weights.T @ covariance @ weights),
             "risk_aversion":risk_aversion
