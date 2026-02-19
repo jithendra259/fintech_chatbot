@@ -1,6 +1,6 @@
 class config:
     assets = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA",  # Technology
+    "AAPL", "MSFT", "GOOGL", "AMZN",  # Technology
     "TSLA", "META",                           # Consumer Discretionary / Comm
     "JPM", "V", "MA", "BAC",                  # Financial
     "WMT", "KO", "PG",                        # Consumer Staples
