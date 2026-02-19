@@ -11,9 +11,9 @@ class Orchestrator:
 
     def run_pipeline(self):
 
-        # ---------------------------
-        # Step 1: Fetch raw price data
-        # ---------------------------
+        # -----------------------------------
+        # Step 1: Fetch full dataset
+        # -----------------------------------
         raw_data = DataFetchAgent.run(
             assets=self.config.assets,
             start_date=self.config.start_date,
@@ -21,37 +21,51 @@ class Orchestrator:
             frequency=self.config.data_frequency
         )
 
-        # ---------------------------
-        # Step 2: Align data and compute statistics
-        # ---------------------------
         aligned_data = DataAlignmentAgent.run(raw_data)
+        returns = aligned_data["returns"]
 
-        # ---------------------------
-        # Step 3: Portfolio optimization
-        # ---------------------------
+        # -----------------------------------
+        # Step 2: Train-Test Split
+        # -----------------------------------
+        train_returns = returns.loc[:self.config.train_end]
+        test_returns = returns.loc[self.config.test_start:]
+
+        # Recompute statistics ONLY on training data
+        train_mean = train_returns.mean()
+        train_cov = train_returns.cov()
+
+        train_aligned = {
+            "returns": train_returns,
+            "mean_returns": train_mean,
+            "covariance": train_cov
+        }
+
+        # -----------------------------------
+        # Step 3: Optimize on TRAIN
+        # -----------------------------------
         portfolio_result = OptimizationAgent.run(
-            aligned_data=aligned_data,
+            aligned_data=train_aligned,
             risk_aversion=self.config.risk_aversion
         )
 
-        # ---------------------------
-        # Step 4: Evaluate performance
-        # (Optimized vs Equal Weight)
-        # ---------------------------
-        evaluation = PerformanceEvaluator.evaluate_with_benchmark(
-            aligned_data["returns"],
+        # -----------------------------------
+        # Step 4: Evaluate
+        # -----------------------------------
+        in_sample_eval = PerformanceEvaluator.evaluate_with_benchmark(
+            train_returns,
             portfolio_result["weights"]
         )
 
-        # ---------------------------
-        # Step 5: AI Explanation
-        # ---------------------------
+        out_sample_eval = PerformanceEvaluator.evaluate_with_benchmark(
+            test_returns,
+            portfolio_result["weights"]
+        )
+
         explanation = AIReasoningAgent.run(portfolio_result)
 
         return {
-            "raw_data": raw_data,
-            "aligned_data": aligned_data,
             "portfolio_result": portfolio_result,
-            "evaluation": evaluation,
+            "in_sample_evaluation": in_sample_eval,
+            "out_sample_evaluation": out_sample_eval,
             "explanation": explanation
         }
