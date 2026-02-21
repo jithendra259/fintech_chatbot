@@ -8,10 +8,18 @@ if __name__ == "__main__":
     print(result["explanation"])
     print("\nPerformance Comparison:")
 
-    for portfolio_type, metrics in result["evaluation"].items():
+    print("\nIN-SAMPLE PERFORMANCE:")
+    for portfolio_type, metrics in result["in_sample_evaluation"].items():
         print(f"\n{portfolio_type.upper()} PORTFOLIO:")
-        
-        for metric_name, value in metrics.items():
-            if metric_name != "cumulative_returns":
-                print(f"{metric_name}: {value:.4f}")
+        for k, v in metrics.items():
+            if k != "cumulative_returns":
+                print(f"{k}: {v:.4f}")
+
+    print("\nOUT-OF-SAMPLE PERFORMANCE:")
+    for portfolio_type, metrics in result["out_sample_evaluation"].items():
+        print(f"\n{portfolio_type.upper()} PORTFOLIO:")
+        for k, v in metrics.items():
+            if k != "cumulative_returns":
+                print(f"{k}: {v:.4f}")
+
 
