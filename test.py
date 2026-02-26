@@ -1,39 +1,16 @@
-from agents.data_agent import DataFetchAgent
 from config.config import config
-from agents.data_alignment_agent import DataAlignmentAgent
-from agents.optimization_agent import optimisationagent as OptimizationAgent
-from agents.ai_reasoning_agent import AIReasoningAgent
-prices = DataFetchAgent.run(
-    assets=config.assets,
-    start_date=config.start_date,
-    end_date=config.end_date,
-    frequency=config.data_frequency
-)
+from orchestrator.orchestrator import Orchestrator
 
-print(prices.head())
-print(prices.tail())
+orc = Orchestrator(config)
+result = orc.start_session(["AAPL", "MSFT", "GOOGL"])
+print("Session:", result["message"])
+print()
 
-aligned=DataAlignmentAgent.run(prices)
-print("prices",aligned["prices"].head())
-print(aligned["returns"].head())
-print(aligned["mean_returns"])
-print(aligned["covariance"].shape)
+print("Test 4 - Change theta to 0.5:")
+r = orc.chat("Change theta to 0.5")
+print("Response:", r["response"])
+print()
 
-# Step 3: Optimize portfolio
-result = OptimizationAgent.run(
-    aligned_data=aligned,
-    risk_aversion = config.risk_aversion
-
-)
-
-print("Optimal Weights:")
-for k, v in result["weights"].items():
-    print(f"{k}: {v:.4f}")
-
-print("\nExpected Return:", result["expected_return"])
-print("Portfolio Risk:", result["risk"])
-
-explanation = AIReasoningAgent.run(result)
-print("\nAI Explanation:")
-print(explanation)
-
+print("Test 5 - Change theta back to 1.0:")
+r = orc.chat("Change theta to 1.0")
+print("Response:", r["response"])
