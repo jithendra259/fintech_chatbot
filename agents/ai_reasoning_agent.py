@@ -1,56 +1,72 @@
-import requests
-import json
+import ollama
+import pandas as pd
+
+from config.config import config
 
 
 class AIReasoningAgent:
-    """
-    Post-hoc portfolio explanation using Ollama Gemini Flash.
-    This agent does NOT influence optimization decisions.
-    """
-
     @staticmethod
-    def run(portfolio_result: dict) -> str:
+    def build_system_message(selected_stocks: list, price_data: pd.DataFrame) -> dict:
+        first_date = price_data.index[0]
+        last_date = price_data.index[-1]
+        first_row = price_data.iloc[0]
+        last_row = price_data.iloc[-1]
 
-        # Clean weights (convert to % and remove near-zero noise)
-        cleaned_weights = {
-            asset: round(weight * 100, 2)
-            for asset, weight in portfolio_result["weights"].items()
-            if weight > 1e-6
-        }
+        latest_price_lines = []
+        price_change_lines = []
+        for stock in selected_stocks:
+            first_price = float(first_row[stock])
+            last_price = float(last_row[stock])
+            change_pct = ((last_price - first_price) / first_price) * 100
 
-        expected_return = portfolio_result["expected_return"]
-        risk = portfolio_result["risk"]
+            latest_price_lines.append(f"- {stock}: {last_price:.2f}")
+            price_change_lines.append(f"- {stock}: {change_pct:.2f}%")
 
-        prompt = f"""
-You are a professional financial analyst.
-
-Explain the following optimized stock portfolio clearly and analytically.
-
-Portfolio Weights (in %):
-{json.dumps(cleaned_weights, indent=2)}
-
-Expected daily return: {expected_return:.6f}
-Portfolio variance: {risk:.6f}
-
-Constraints:
-- Do NOT suggest changes
-- Do NOT propose strategies
-- Do NOT recommend rebalancing
-- Do NOT provide investment advice
-- Only explain why this allocation occurred
-- Keep explanation concise
-"""
-
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "gemini-3-flash-preview",
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=120
+        stock_summary = (
+            "\n\nStock Data Summary:\n"
+            f"Selected stocks: {selected_stocks}\n"
+            f"Date range: {first_date} to {last_date}\n"
+            "Latest closing prices:\n"
+            + "\n".join(latest_price_lines)
+            + "\nPrice change over period:\n"
+            + "\n".join(price_change_lines)
         )
 
-        response.raise_for_status()
+        system_prompt_string = f"{config.system_prompt}{stock_summary}"
+        return {"role": "system", "content": system_prompt_string}
 
-        return response.json()["response"].strip()
+    @staticmethod
+    def chat(messages: list, user_message: str) -> dict:
+        user_entry = {"role": "user", "content": user_message}
+
+        if messages:
+            system_message = messages[0]
+            history_tail = messages[1:][-config.conversation_window:]
+            windowed_messages = [system_message] + history_tail
+        else:
+            windowed_messages = []
+
+        windowed_messages.append(user_entry)
+
+        try:
+            response = ollama.chat(
+                model=config.ollama_model,
+                messages=windowed_messages,
+                keep_alive=config.ollama_keep_alive,
+                stream=False,
+            )
+        except Exception:
+            return {
+                "response": "LLM unavailable. Ollama is not running. Start Ollama with: ollama serve",
+                "updated_messages": messages,
+            }
+
+        if isinstance(response, dict):
+            response_text = response.get("message", {}).get("content", "")
+        else:
+            response_text = getattr(getattr(response, "message", None), "content", "")
+
+        assistant_entry = {"role": "assistant", "content": response_text}
+        updated_messages = list(messages) + [user_entry, assistant_entry]
+
+        return {"response": response_text, "updated_messages": updated_messages}
