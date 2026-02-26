@@ -53,6 +53,7 @@ class AIReasoningAgent:
                 model=config.ollama_model,
                 messages=windowed_messages,
                 keep_alive=config.ollama_keep_alive,
+                options={"num_predict": 500, "temperature": 0.3},
                 stream=False,
             )
         except Exception:
