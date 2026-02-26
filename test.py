@@ -1,39 +1,30 @@
-from agents.data_agent import DataFetchAgent
-from config.config import config
-from agents.data_alignment_agent import DataAlignmentAgent
-from agents.optimization_agent import optimisationagent as OptimizationAgent
-from agents.ai_reasoning_agent import AIReasoningAgent
-prices = DataFetchAgent.run(
-    assets=config.assets,
-    start_date=config.start_date,
-    end_date=config.end_date,
-    frequency=config.data_frequency
+
+
+from orchestrator.intent_classifier import (
+    classify_intent,
+    get_context_sections,
+    extract_parameters
 )
 
-print(prices.head())
-print(prices.tail())
+tests = [
+    "What is the current regime?",
+    "Show me the portfolio weights",
+    "What is the Sharpe ratio?",
+    "Compare optimized vs equal weight",
+    "What is the instability index?",
+    "Change lambda to 1",
+    "Change theta to 0.5",
+    "What happened in the training period?",
+    "Hello how are you"
+]
 
-aligned=DataAlignmentAgent.run(prices)
-print("prices",aligned["prices"].head())
-print(aligned["returns"].head())
-print(aligned["mean_returns"])
-print(aligned["covariance"].shape)
-
-# Step 3: Optimize portfolio
-result = OptimizationAgent.run(
-    aligned_data=aligned,
-    risk_aversion = config.risk_aversion
-
-)
-
-print("Optimal Weights:")
-for k, v in result["weights"].items():
-    print(f"{k}: {v:.4f}")
-
-print("\nExpected Return:", result["expected_return"])
-print("Portfolio Risk:", result["risk"])
-
-explanation = AIReasoningAgent.run(result)
-print("\nAI Explanation:")
-print(explanation)
-
+for q in tests:
+    result = classify_intent(q)
+    sections = get_context_sections(result["intent"])
+    params = extract_parameters(q)
+    print(f"Query: {q}")
+    print(f"  Intent:   {result['intent']} (score: {result['score']})")
+    print(f"  Sections: {sections}")
+    if params["lambda"] or params["theta_H"]:
+        print(f"  Params:   {params}")
+    print()
