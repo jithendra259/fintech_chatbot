@@ -58,33 +58,6 @@ class PerformanceEvaluator:
         drawdown = cumulative_returns / rolling_max - 1
         return drawdown.min()
 
-    # ---------------------------------------------------
-    # Full Evaluation
-    # ---------------------------------------------------
-
-    @staticmethod
-    def evaluate(returns: pd.DataFrame, weights: dict) -> dict:
-        """
-        Evaluate a single portfolio.
-        """
-        portfolio_returns = PerformanceEvaluator.compute_portfolio_returns(
-            returns, weights
-        )
-
-        cumulative = PerformanceEvaluator.cumulative_return(portfolio_returns)
-
-        return {
-            "annualized_return": PerformanceEvaluator.annualized_return(portfolio_returns),
-            "annualized_volatility": PerformanceEvaluator.annualized_volatility(portfolio_returns),
-            "sharpe_ratio": PerformanceEvaluator.sharpe_ratio(portfolio_returns),
-            "max_drawdown": PerformanceEvaluator.max_drawdown(cumulative),
-            "cumulative_returns": cumulative
-        }
-
-    # ---------------------------------------------------
-    # Equal-Weight Benchmark
-    # ---------------------------------------------------
-
     @staticmethod
     def equal_weight_portfolio(returns: pd.DataFrame) -> dict:
         """
@@ -93,20 +66,91 @@ class PerformanceEvaluator:
         n = returns.shape[1]
         return {col: 1 / n for col in returns.columns}
 
+    # ---------------------------------------------------
+    # Additional Metrics
+    # ---------------------------------------------------
+
     @staticmethod
-    def evaluate_with_benchmark(returns: pd.DataFrame, opt_weights: dict) -> dict:
-        """
-        Evaluate optimized portfolio and equal-weight benchmark.
-        """
+    def calmar_ratio(portfolio_returns: pd.Series) -> float:
+        ann_return = PerformanceEvaluator.annualized_return(portfolio_returns)
+        cumulative = PerformanceEvaluator.cumulative_return(portfolio_returns)
+        max_dd = PerformanceEvaluator.max_drawdown(cumulative)
+        if max_dd == 0:
+            return 0.0
+        return float(ann_return / abs(max_dd))
 
-        # Optimized portfolio
-        optimized_metrics = PerformanceEvaluator.evaluate(returns, opt_weights)
+    @staticmethod
+    def compute_hhi(weights: dict) -> float:
+        w = np.array(list(weights.values()), dtype=float)
+        return float((w**2).sum())
 
-        # Equal-weight benchmark
-        eq_weights = PerformanceEvaluator.equal_weight_portfolio(returns)
-        equal_weight_metrics = PerformanceEvaluator.evaluate(returns, eq_weights)
+    @staticmethod
+    def compute_effective_n(hhi: float) -> float:
+        if hhi == 0:
+            return 0.0
+        return round(1 / hhi, 2)
+
+    @staticmethod
+    def governance_stability(current_weights: dict, previous_weights: dict | None):
+        if previous_weights is None:
+            return None
+
+        keys = sorted(set(current_weights.keys()) | set(previous_weights.keys()))
+        diffs = [
+            abs(float(current_weights.get(k, 0.0)) - float(previous_weights.get(k, 0.0)))
+            for k in keys
+        ]
+        return round(float(np.sum(diffs)), 6)
+
+    # ---------------------------------------------------
+    # Full Evaluation
+    # ---------------------------------------------------
+
+    @staticmethod
+    def evaluate(
+        returns: pd.DataFrame,
+        weights: dict,
+        previous_weights: dict | None = None,
+    ) -> dict:
+        portfolio_returns = PerformanceEvaluator.compute_portfolio_returns(returns, weights)
+        cumulative = PerformanceEvaluator.cumulative_return(portfolio_returns)
+
+        ann_ret = PerformanceEvaluator.annualized_return(portfolio_returns)
+        ann_vol = PerformanceEvaluator.annualized_volatility(portfolio_returns)
+        sharpe = PerformanceEvaluator.sharpe_ratio(portfolio_returns)
+        max_dd = PerformanceEvaluator.max_drawdown(cumulative)
+        calmar = PerformanceEvaluator.calmar_ratio(portfolio_returns)
+        hhi = PerformanceEvaluator.compute_hhi(weights)
+        eff_n = PerformanceEvaluator.compute_effective_n(hhi)
+        gs = PerformanceEvaluator.governance_stability(weights, previous_weights)
 
         return {
-            "optimized": optimized_metrics,
-            "equal_weight": equal_weight_metrics
+            "annualized_return": round(ann_ret, 4),
+            "annualized_volatility": round(ann_vol, 4),
+            "sharpe_ratio": round(sharpe, 4),
+            "max_drawdown": round(max_dd, 4),
+            "calmar_ratio": round(calmar, 4),
+            "hhi": round(hhi, 6),
+            "effective_n": eff_n,
+            "governance_stability": gs,
+            "cumulative_returns": cumulative,
+        }
+
+    # ---------------------------------------------------
+    # Equal-Weight Benchmark
+    # ---------------------------------------------------
+
+    @staticmethod
+    def evaluate_with_benchmark(
+        returns: pd.DataFrame,
+        opt_weights: dict,
+        previous_weights: dict | None = None,
+    ) -> dict:
+        optimized = PerformanceEvaluator.evaluate(returns, opt_weights, previous_weights)
+        eq_weights = PerformanceEvaluator.equal_weight_portfolio(returns)
+        equal_weight = PerformanceEvaluator.evaluate(returns, eq_weights, None)
+
+        return {
+            "optimized": optimized,
+            "equal_weight": equal_weight,
         }
