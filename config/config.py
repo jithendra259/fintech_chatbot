@@ -20,7 +20,7 @@ class config:
     train_window = 504
     test_window = 63
 
-    ollama_model = "phi3.5"
+    ollama_model = "gpt-oss:120b-cloud"
     ollama_url = "http://localhost:11434"
     ollama_keep_alive = "10m"
     conversation_window = 6
