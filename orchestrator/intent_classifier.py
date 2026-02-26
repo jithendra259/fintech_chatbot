@@ -113,6 +113,23 @@ INTENT_PATTERNS = {
         "test period",
         "date",
         "when",
+        "invested in",
+        "invest in",
+        "if i had",
+        "how much now",
+        "how much would",
+        "since 2015",
+        "since 2010",
+        "since 2020",
+        "from 2015",
+        "from 2010",
+        "2015 to now",
+        "2010 to now",
+        "how much return",
+        "total return",
+        "cumulative return",
+        "growth of",
+        "grown to",
     ],
 }
 
@@ -120,11 +137,11 @@ INTENT_PATTERNS = {
 SECTION_MAP = {
     "regime_query": ["instability", "regime"],
     "metric_query": ["performance", "benchmark"],
-    "allocation_query": ["weights", "optimization", "data_info"],
+    "allocation_query": ["weights", "optimization", "data_info", "price_history"],
     "concept_query": ["instability", "regime", "shrinkage", "governance_note"],
     "comparison_query": ["performance", "benchmark", "weights"],
     "parameter_change": ["regime", "optimization", "performance", "params"],
-    "historical_query": ["performance", "data_info", "instability"],
+    "historical_query": ["performance", "data_info", "instability", "price_history"],
     "general_query": [
         "instability",
         "regime",
@@ -133,6 +150,7 @@ SECTION_MAP = {
         "benchmark",
         "shrinkage",
         "data_info",
+        "price_history",
     ],
 }
 
@@ -145,6 +163,14 @@ def classify_intent(query: str) -> dict:
         keywords = INTENT_PATTERNS.get(intent, [])
         score = sum(1 for keyword in keywords if keyword in query_lower)
         scores[intent] = score
+
+    has_year = re.search(r"\b(19|20)\d{2}\b", query_lower) is not None
+    has_investment_phrase = any(
+        phrase in query_lower
+        for phrase in ["invest", "return", "how much", "cumulative", "grown"]
+    )
+    if has_year and has_investment_phrase:
+        scores["historical_query"] = scores.get("historical_query", 0) + 3
 
     best_intent = "general_query"
     best_score = 0
