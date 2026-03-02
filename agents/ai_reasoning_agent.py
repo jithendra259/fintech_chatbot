@@ -1,5 +1,6 @@
 import ollama
 import pandas as pd
+import time
 
 from config.config import config
 
@@ -48,17 +49,30 @@ class AIReasoningAgent:
 
         windowed_messages.append(user_entry)
 
-        try:
-            response = ollama.chat(
-                model=config.ollama_model,
-                messages=windowed_messages,
-                keep_alive=config.ollama_keep_alive,
-                options={"num_predict": 500, "temperature": 0.3},
-                stream=False,
-            )
-        except Exception:
+        client = ollama.Client(host=config.ollama_url)
+        response = None
+        last_error = None
+
+        for _ in range(2):
+            try:
+                response = client.chat(
+                    model=config.ollama_model,
+                    messages=windowed_messages,
+                    keep_alive=config.ollama_keep_alive,
+                    options={"num_predict": 500, "temperature": 0.3},
+                    stream=False,
+                )
+                break
+            except Exception as error:
+                last_error = error
+                time.sleep(0.4)
+
+        if response is None:
             return {
-                "response": "LLM unavailable. Ollama is not running. Start Ollama with: ollama serve",
+                "response": (
+                    "LLM unavailable. Ollama is not running. Start Ollama with: ollama serve\n"
+                    f"Details: {str(last_error)}"
+                ),
                 "updated_messages": messages,
             }
 

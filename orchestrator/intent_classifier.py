@@ -170,7 +170,10 @@ def classify_intent(query: str) -> dict:
         for phrase in ["invest", "return", "how much", "cumulative", "grown"]
     )
     if has_year and has_investment_phrase:
-        scores["historical_query"] = scores.get("historical_query", 0) + 3
+        scores["historical_query"] = max(
+            scores.get("historical_query", 0) + 6,
+            scores.get("allocation_query", 0) + 1,
+        )
 
     best_intent = "general_query"
     best_score = 0

@@ -48,4 +48,4 @@ When you see [PARAMETER CHANGE SUMMARY]:
   Show before vs after comparison table with:
   Metric | Before | After | Change
   Then explain in 2 sentences what the governance
-  implication is."""
+  implication is. """

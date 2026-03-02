@@ -1,3 +1,5 @@
+import re
+
 from config.config import config
 from agents.data_agent import DataFetchAgent
 from agents.data_alignment_agent import DataAlignmentAgent
@@ -173,7 +175,7 @@ class Orchestrator:
         )
 
         prices = aligned["prices"][selected_stocks]
-        price_history_slice = prices.loc["2015-01-01":]
+        price_history_slice = prices.loc[config.start_date:]
         if price_history_slice.empty:
             price_history_slice = prices
 
@@ -261,6 +263,91 @@ class Orchestrator:
         focused_context = f"{config.system_prompt}\n\n" + "\n".join(selected_sections)
         return {"role": "system", "content": focused_context}
 
+    def _build_investment_scenario_context(self, user_message: str):
+        query_lower = user_message.lower()
+        year_match = re.search(r"\b(19|20)\d{2}\b", query_lower)
+        if year_match is None:
+            return None
+
+        year = int(year_match.group(0))
+
+        amount = None
+        amount_patterns = [
+            r"(?:invest|invested|investment)\s*(?:of|in)?\s*([\d,]+(?:\.\d+)?)",
+            r"([\d,]+(?:\.\d+)?)\s*(?:rupees|inr|rs)\b",
+        ]
+        for pattern in amount_patterns:
+            amount_match = re.search(pattern, query_lower)
+            if amount_match:
+                try:
+                    amount = float(amount_match.group(1).replace(",", ""))
+                except ValueError:
+                    amount = None
+                break
+
+        if amount is None:
+            amount = 1.0
+
+        prices = self.session_data["aligned"]["prices"][self.selected_stocks]
+        scenario_prices = prices.loc[f"{year}-01-01":]
+        if scenario_prices.empty:
+            return (
+                "INVESTMENT SCENARIO (query-specific):\n"
+                f"Requested start year: {year}\n"
+                "No price data found for that start year in the current session."
+            )
+
+        start_date = str(scenario_prices.index[0].date())
+        end_date = str(scenario_prices.index[-1].date())
+        start_row = scenario_prices.iloc[0]
+        end_row = scenario_prices.iloc[-1]
+
+        lines = []
+        total_start = 0.0
+        total_end = 0.0
+        gain_count = 0
+
+        for ticker in self.selected_stocks:
+            start_price = float(start_row[ticker])
+            end_price = float(end_row[ticker])
+            growth = (end_price / start_price) if start_price != 0 else 0.0
+            final_value = amount * growth
+            pnl = final_value - amount
+            return_pct = (growth - 1.0) * 100.0
+            side = "GAIN" if pnl >= 0 else "LOSS"
+
+            if pnl >= 0:
+                gain_count += 1
+
+            lines.append(
+                f"{ticker} | {start_price:.2f} | {end_price:.2f} | "
+                f"{final_value:.2f} | {return_pct:.2f}% | {side}"
+            )
+            total_start += amount
+            total_end += final_value
+
+        n_assets = len(self.selected_stocks)
+        total_return_pct = ((total_end / total_start) - 1.0) * 100.0 if total_start else 0.0
+        total_pnl = total_end - total_start
+        gain_stocks_pct = (gain_count / n_assets) * 100.0 if n_assets else 0.0
+        loss_stocks_pct = 100.0 - gain_stocks_pct if n_assets else 0.0
+
+        return (
+            "INVESTMENT SCENARIO (query-specific):\n"
+            f"Start year requested: {year}\n"
+            f"Actual period used: {start_date} to {end_date}\n"
+            f"Investment per stock assumed: {amount:.2f}\n"
+            "Rows: Ticker | Start Price | End Price | Final Value | Return % | Gain/Loss\n"
+            + "\n".join(lines)
+            + "\nSummary:\n"
+            + f"Total invested = {total_start:.2f}\n"
+            + f"Total final value = {total_end:.2f}\n"
+            + f"Total P&L = {total_pnl:.2f}\n"
+            + f"Total return = {total_return_pct:.2f}%\n"
+            + f"Gain stocks % = {gain_stocks_pct:.2f}%\n"
+            + f"Loss stocks % = {loss_stocks_pct:.2f}%"
+        )
+
     def chat(self, user_message: str) -> dict:
         try:
             if not self.session_active:
@@ -272,8 +359,17 @@ class Orchestrator:
             if user_message == "":
                 return {"success": False, "response": "Please type a message."}
 
+            query_lower = user_message.lower()
+            has_year = re.search(r"\b(19|20)\d{2}\b", query_lower) is not None
+            has_investment_phrase = any(
+                phrase in query_lower
+                for phrase in ["invest", "return", "how much", "cumulative", "grown", "profit", "loss"]
+            )
+
             intent_result = classify_intent(user_message)
             intent = intent_result["intent"]
+            if has_year and has_investment_phrase:
+                intent = "historical_query"
             sections = get_context_sections(intent)
             params = extract_parameters(user_message)
 
@@ -303,7 +399,16 @@ class Orchestrator:
                     )
                     user_message = user_message + delta_context
 
+            scenario_context = None
+            if has_year and has_investment_phrase:
+                scenario_context = self._build_investment_scenario_context(user_message)
+
             focused_msg = self._build_focused_context(sections)
+            if scenario_context:
+                focused_msg = {
+                    "role": "system",
+                    "content": f"{focused_msg['content']}\n\n{scenario_context}",
+                }
             messages_to_send = [focused_msg] + self.messages[1:][-6:]
 
             self.messages.append({"role": "user", "content": user_message})
