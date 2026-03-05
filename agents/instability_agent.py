@@ -6,6 +6,28 @@ from config.config import config
 
 class InstabilityAgent:
     @staticmethod
+    def map_signals(instability: float) -> tuple:
+        if instability < 0:
+            signal = "CALM"
+        elif instability < 0.5:
+            signal = "NORMAL"
+        elif instability < 1.0:
+            signal = "ELEVATED"
+        elif instability < 2.0:
+            signal = "HIGH"
+        else:
+            signal = "EXTREME"
+
+        if instability < 0:
+            signal_paper = "WEAK"
+        elif instability < 1.0:
+            signal_paper = "MODERATE"
+        else:
+            signal_paper = "STRONG"
+
+        return signal, signal_paper
+
+    @staticmethod
     def compute_baseline(train_returns: pd.DataFrame) -> dict:
         window = config.inst_window
         dates = []
@@ -71,21 +93,12 @@ class InstabilityAgent:
         drift_z = (drift_raw - baseline["drift_mean"]) / baseline["drift_std"]
 
         instability = (vol_z + corr_z + drift_z) / 3.0
-
-        if instability < 0:
-            signal = "CALM"
-        elif instability < 0.5:
-            signal = "NORMAL"
-        elif instability < 1.0:
-            signal = "ELEVATED"
-        elif instability < 2.0:
-            signal = "HIGH"
-        else:
-            signal = "EXTREME"
+        signal, signal_paper = InstabilityAgent.map_signals(instability)
 
         return {
             "instability": round(instability, 4),
             "signal": signal,
+            "signal_paper": signal_paper,
             "vol_raw": round(vol_raw, 6),
             "corr_raw": round(corr_raw, 6),
             "drift_raw": round(drift_raw, 6),
