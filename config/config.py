@@ -10,8 +10,8 @@ class config:
 
     start_date = "2010-01-01"
     end_date = "2024-12-31"
-    train_end = "2022-12-31"
-    test_start = "2023-01-01"
+    train_end = "2019-12-31"
+    test_start = "2020-01-01"
 
     data_frequency = "daily"
     risk_aversion = 3.0

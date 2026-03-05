@@ -1,0 +1,6 @@
+Universe,Paired t-stat,t-test p-value,Wilcoxon p-val
+U1: US Large-Cap,5.639,0.0000 ***,0.0000 ***
+U2: European ETFs,3.051,0.0036 **,0.0033 **
+U3: Asia-Pac ETFs,2.436,0.0186 *,0.0162 *
+U4: US Sectors,4.494,0.0000 ***,0.0001 ***
+U5: Multi-Asset,6.917,0.0000 ***,0.0000 ***

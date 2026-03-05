@@ -21,7 +21,6 @@ matplotlib
 seaborn
 
 #agent & orchestration(chat interface only)
-phidata
 
 #local llm runtime 
 ollama
